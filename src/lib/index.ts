@@ -10,8 +10,31 @@ export {
 export type { Bar, Group, LogEvent, Logger, MessageKind, Renderer, TextRendererOptions, Verbosity } from './utils';
 
 // High-level read/write
-export { readFile, getInputFormat } from './read';
+export { readFile, readFileAsSource, getInputFormat } from './read';
 export type { InputFormat, ReadFileOptions } from './read';
+
+// New chunk-based source API (3.0)
+export {
+    type Chunk,
+    type ChunkFieldMap,
+    type ChunkManager,
+    type GaussianSource,
+    type Layer,
+    type LayerLayout,
+    type ReadRequest,
+    type SHBands,
+    type SourceMetadata,
+    createChunkManager,
+    createInMemorySource,
+    InMemorySource,
+    dataTableToSource,
+    cached,
+    mapSource,
+    filterSource,
+    permuteSource,
+    concatSource,
+    compact
+} from './source';
 export { writeFile, getOutputFormat } from './write';
 export type { OutputFormat, WriteOptions } from './write';
 

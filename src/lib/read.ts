@@ -1,6 +1,7 @@
 import { DataTable } from './data-table';
 import { ReadFileSystem, ZipReadFileSystem } from './io/read';
 import { readKsplat, readLcc, readMjs, readPly, readSog, readSplat, readSpz } from './readers';
+import { type GaussianSource, dataTableToSource } from './source';
 import { Options, Param } from './types';
 
 /**
@@ -16,28 +17,8 @@ import { Options, Param } from './types';
  */
 type InputFormat = 'mjs' | 'ksplat' | 'splat' | 'sog' | 'ply' | 'spz' | 'lcc';
 
-/**
- * Determines the input format based on file extension.
- *
- * @param filename - The filename to analyze.
- * @returns The detected input format.
- * @throws Error if the file extension is not recognized.
- *
- * @example
- * ```ts
- * const format = getInputFormat('scene.ply');  // returns 'ply'
- * const format2 = getInputFormat('scene.splat');  // returns 'splat'
- * ```
- */
 // Strip a trailing `?...` querystring and/or `#...` fragment from the
-// *basename* so that extension sniffing works for URL-shaped inputs:
-//   - full URLs:   `https://host/scene.sog?token=...`
-//   - CLI splits:  `scene.sog?token=...` (resolveInput passes the bare leaf
-//                  + query down to readFile so the initial fetch carries it)
-// Only the basename (text after the last `/` or `\`) is considered, so
-// POSIX paths containing `?` or `#` in *directory* segments are left
-// untouched. Local files literally named with `?`/`#` in the basename are
-// an unsupported edge case (the extension would be ambiguous anyway).
+// *basename* so that extension sniffing works for URL-shaped inputs.
 const stripQueryAndHash = (filename: string): string => {
     const lastSep = Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
     const basenameStart = lastSep + 1;
@@ -45,6 +26,9 @@ const stripQueryAndHash = (filename: string): string => {
     return q < 0 ? filename : filename.slice(0, basenameStart + q);
 };
 
+/**
+ * Determines the input format based on file extension.
+ */
 const getInputFormat = (filename: string): InputFormat => {
     const lowerFilename = stripQueryAndHash(filename).toLowerCase();
 
@@ -83,76 +67,75 @@ type ReadFileOptions = {
     fileSystem: ReadFileSystem;
 };
 
+/** Dispatch to the appropriate format-specific reader; returns one or more DataTables. */
+const readDataTables = async (readFileOptions: ReadFileOptions): Promise<DataTable[]> => {
+    const { filename, inputFormat, options, params, fileSystem } = readFileOptions;
+
+    if (inputFormat === 'mjs') {
+        return [await readMjs(filename, params)];
+    }
+    if (inputFormat === 'sog') {
+        const lowerFilename = stripQueryAndHash(filename).toLowerCase();
+        if (lowerFilename.endsWith('.sog')) {
+            const source = await fileSystem.createSource(filename);
+            const zipFs = new ZipReadFileSystem(source);
+            try {
+                return [await readSog(zipFs, 'meta.json')];
+            } finally {
+                zipFs.close();
+            }
+        }
+        return [await readSog(fileSystem, filename)];
+    }
+    if (inputFormat === 'lcc') {
+        return await readLcc(fileSystem, filename, options);
+    }
+
+    const source = await fileSystem.createSource(filename);
+    try {
+        if (inputFormat === 'ply') return [await readPly(source)];
+        if (inputFormat === 'ksplat') return [await readKsplat(source)];
+        if (inputFormat === 'splat') return [await readSplat(source)];
+        if (inputFormat === 'spz') return [await readSpz(source)];
+        throw new Error(`Unsupported input format: ${inputFormat}`);
+    } finally {
+        source.close();
+    }
+};
+
 /**
  * Reads a Gaussian splat file and returns its data as one or more DataTables.
  *
  * Supports multiple input formats including PLY, splat, ksplat, spz, SOG, and LCC.
  * Some formats (like LCC) may return multiple DataTables for different LOD levels.
  *
- * Per-format progress (decoding bars, multi-payload bars) is emitted directly
- * by each reader through the global {@link logger}; install a renderer via
- * `logger.setRenderer(...)` to consume those events.
- *
  * @param readFileOptions - Options specifying the file to read and how to read it.
  * @returns Promise resolving to an array of DataTables containing the splat data.
- *
- * @example
- * ```ts
- * import { readFile, getInputFormat, UrlReadFileSystem } from '@playcanvas/splat-transform';
- *
- * const filename = 'scene.ply';
- * const fileSystem = new UrlReadFileSystem('https://example.com/');
- * const tables = await readFile({
- *     filename,
- *     inputFormat: getInputFormat(filename),
- *     options: {},
- *     params: [],
- *     fileSystem
- * });
- * ```
  */
 const readFile = async (readFileOptions: ReadFileOptions): Promise<DataTable[]> => {
-    const { filename, inputFormat, options, params, fileSystem } = readFileOptions;
-
-    let result: DataTable[];
-
-    if (inputFormat === 'mjs') {
-        result = [await readMjs(filename, params)];
-    } else if (inputFormat === 'sog') {
-        const lowerFilename = stripQueryAndHash(filename).toLowerCase();
-        if (lowerFilename.endsWith('.sog')) {
-            // Outer .sog is a ZIP container - mount it and let the inner SOG
-            // reader drive its own decode bar against the zipped payloads.
-            const source = await fileSystem.createSource(filename);
-            const zipFs = new ZipReadFileSystem(source);
-            try {
-                result = [await readSog(zipFs, 'meta.json')];
-            } finally {
-                zipFs.close();
-            }
-        } else {
-            result = [await readSog(fileSystem, filename)];
-        }
-    } else if (inputFormat === 'lcc') {
-        result = await readLcc(fileSystem, filename, options);
-    } else {
-        const source = await fileSystem.createSource(filename);
-        try {
-            if (inputFormat === 'ply') {
-                result = [await readPly(source)];
-            } else if (inputFormat === 'ksplat') {
-                result = [await readKsplat(source)];
-            } else if (inputFormat === 'splat') {
-                result = [await readSplat(source)];
-            } else if (inputFormat === 'spz') {
-                result = [await readSpz(source)];
-            }
-        } finally {
-            source.close();
-        }
-    }
-
-    return result;
+    return readDataTables(readFileOptions);
 };
 
-export { readFile, getInputFormat, type InputFormat, type ReadFileOptions };
+/**
+ * Reads a Gaussian splat file and returns its data as one or more `GaussianSource`s.
+ *
+ * This is the new 3.0 entry point for the chunked source API. Each reader's
+ * `DataTable` output is wrapped via `dataTableToSource` — the canonical
+ * layered chunk shape, ready for the new `processSource` / new writers.
+ *
+ * Once individual readers are migrated to emit `GaussianSource` natively
+ * (skipping the intermediate `DataTable`), this dispatcher will route to
+ * them directly without the conversion step.
+ */
+const readFileAsSource = async (readFileOptions: ReadFileOptions): Promise<GaussianSource[]> => {
+    const tables = await readDataTables(readFileOptions);
+    return tables.map(t => dataTableToSource(t));
+};
+
+export {
+    readFile,
+    readFileAsSource,
+    getInputFormat,
+    type InputFormat,
+    type ReadFileOptions
+};

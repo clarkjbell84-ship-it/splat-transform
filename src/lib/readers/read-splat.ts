@@ -11,7 +11,7 @@ const TICK_BATCH = 1 << 16;
  * opacity, and rotation data in a compact binary format.
  *
  * @param source - The read source providing access to the .splat file data.
- * @returns Promise resolving to a DataTable containing the splat data.
+ * @returns Promise resolving to a `GaussianSource` over the splat data.
  * @ignore
  */
 const readSplat = async (source: ReadSource): Promise<DataTable> => {
