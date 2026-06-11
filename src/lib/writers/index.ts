@@ -8,6 +8,7 @@ export type { WriteImageOptions } from './write-image';
 export { writeLod } from './write-lod';
 export { writePly } from './write-ply';
 export { writeSog } from './write-sog';
+export type { SogWorkers } from './write-sog';
 export { writeSpz } from './write-spz';
 export { writeVoxel } from './write-voxel';
 export type { WriteVoxelOptions, VoxelMetadata } from './write-voxel';

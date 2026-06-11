@@ -7,6 +7,7 @@ import { GraphicsDevice, Vec3 } from 'playcanvas';
 
 import { createDevice, enumerateAdapters } from './node-device';
 import { NodeFileSystem, NodeReadFileSystem } from './node-file-system';
+import { createSogWorkers } from './sog-workers';
 import {
     combine,
     DataTable,
@@ -1157,14 +1158,23 @@ const main = async () => {
                 total: phaseTotal
             });
             logDataTableInfo(dataTable);
-            await writeFile({
-                filename: outputFilename,
-                outputFormat: outputFormat!,
-                dataTable,
-                envDataTable,
-                options,
-                createDevice: deviceCreator
-            }, new NodeFileSystem());
+
+            // worker threads for parallel SOG quantization/encoding (threads
+            // spawn lazily, so this is free for non-SOG outputs)
+            const sogWorkers = createSogWorkers();
+            try {
+                await writeFile({
+                    filename: outputFilename,
+                    outputFormat: outputFormat!,
+                    dataTable,
+                    envDataTable,
+                    options,
+                    createDevice: deviceCreator,
+                    workers: sogWorkers.workers
+                }, new NodeFileSystem());
+            } finally {
+                await sogWorkers.destroy();
+            }
             phase.end();
         }
     } catch (err) {

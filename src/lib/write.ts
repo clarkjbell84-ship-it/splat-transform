@@ -1,7 +1,7 @@
 import { DataTable } from './data-table';
 import { type FileSystem } from './io/write';
 import { type DeviceCreator, type Options } from './types';
-import { writeCompressedPly, writeCsv, writeGlb, writeHtml, writeImage, writeLod, writePly, writeSog, writeSpz, writeVoxel } from './writers';
+import { type SogWorkers, writeCompressedPly, writeCsv, writeGlb, writeHtml, writeImage, writeLod, writePly, writeSog, writeSpz, writeVoxel } from './writers';
 
 /**
  * Supported output file formats for Gaussian splat data.
@@ -37,6 +37,8 @@ type WriteOptions = {
     options: Options;
     /** Optional function to create a GPU device for compression. */
     createDevice?: DeviceCreator;
+    /** Optional worker-backed executors for parallel SOG writing. */
+    workers?: SogWorkers;
 };
 
 /**
@@ -105,7 +107,7 @@ const getOutputFormat = (filename: string, options: Options): OutputFormat => {
  * ```
  */
 const writeFile = async (writeOptions: WriteOptions, fs: FileSystem) => {
-    const { filename, outputFormat, dataTable, envDataTable, options, createDevice } = writeOptions;
+    const { filename, outputFormat, dataTable, envDataTable, options, createDevice, workers } = writeOptions;
 
     // Each writer is responsible for opening its own `Writing` log group and
     // emitting `filename (size)` info entries per output file.
@@ -120,7 +122,8 @@ const writeFile = async (writeOptions: WriteOptions, fs: FileSystem) => {
                 dataTable,
                 bundle: outputFormat === 'sog-bundle',
                 iterations: options.iterations,
-                createDevice
+                createDevice,
+                workers
             }, fs);
             break;
         case 'lod':
@@ -130,6 +133,7 @@ const writeFile = async (writeOptions: WriteOptions, fs: FileSystem) => {
                 envDataTable,
                 iterations: options.iterations,
                 createDevice,
+                workers,
                 chunkCount: options.lodChunkCount,
                 chunkExtent: options.lodChunkExtent
             }, fs);
@@ -167,7 +171,8 @@ const writeFile = async (writeOptions: WriteOptions, fs: FileSystem) => {
                 viewerSettingsJson: options.viewerSettingsJson,
                 bundle: outputFormat === 'html-bundle',
                 iterations: options.iterations,
-                createDevice
+                createDevice,
+                workers
             }, fs);
             break;
         case 'voxel':

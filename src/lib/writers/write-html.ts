@@ -2,7 +2,7 @@ import { html, css, js } from '@playcanvas/supersplat-viewer';
 import { basename, dirname, join } from 'pathe';
 
 import { logWrittenFile } from './utils';
-import { writeSog } from './write-sog';
+import { type SogWorkers, writeSog } from './write-sog';
 import { DataTable } from '../data-table';
 import { type FileSystem, MemoryFileSystem, writeFile } from '../io/write';
 import type { DeviceCreator } from '../types';
@@ -39,6 +39,7 @@ type WriteHtmlOptions = {
     bundle: boolean;
     iterations: number;
     createDevice?: DeviceCreator;
+    workers?: SogWorkers;
 };
 
 /**
@@ -52,7 +53,7 @@ type WriteHtmlOptions = {
  * @ignore
  */
 const writeHtml = async (options: WriteHtmlOptions, fs: FileSystem) => {
-    const { filename, dataTable, viewerSettingsJson, bundle, iterations, createDevice } = options;
+    const { filename, dataTable, viewerSettingsJson, bundle, iterations, createDevice, workers } = options;
 
     const pad = (text: string, spaces: number) => {
         const whitespace = ' '.repeat(spaces);
@@ -73,6 +74,7 @@ const writeHtml = async (options: WriteHtmlOptions, fs: FileSystem) => {
             bundle: true,
             iterations,
             createDevice,
+            workers,
             logging: 'silent'
         }, memoryFs);
 
@@ -113,6 +115,7 @@ const writeHtml = async (options: WriteHtmlOptions, fs: FileSystem) => {
             bundle: true,
             iterations,
             createDevice,
+            workers,
             logging: 'flat'
         }, fs);
 

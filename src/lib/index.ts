@@ -48,7 +48,7 @@ export { readKsplat, readLcc, readMjs, readPly, readSog, readSplat, readSpz } fr
 
 // Individual writers (for advanced use)
 export { writeSog, writeSpz, writePly, writeCompressedPly, writeCsv, writeHtml, writeImage, writeLod, writeGlb, writeVoxel } from './writers';
-export type { WriteImageOptions, WriteVoxelOptions, VoxelMetadata } from './writers';
+export type { SogWorkers, WriteImageOptions, WriteVoxelOptions, VoxelMetadata } from './writers';
 
 // Renderer (for advanced use)
 export { renderSplats, buildCameraBasis } from './render';

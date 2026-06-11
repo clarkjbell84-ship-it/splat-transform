@@ -93,4 +93,27 @@ const cli = {
     cache: false
 };
 
-export default [esm, cjs, cli];
+// SOG worker thread build - Node.js specific, spawned by the CLI's
+// SogWorkerPool via new Worker(new URL('sog-worker.mjs', import.meta.url))
+const sogWorker = {
+    input: 'src/cli/sog-worker.ts',
+    output: {
+        dir: 'dist',
+        format: 'esm',
+        sourcemap: true,
+        entryFileNames: 'sog-worker.mjs'
+    },
+    plugins: [
+        versionReplace(),
+        typescript({
+            tsconfig: './tsconfig.json',
+            declaration: false,
+            declarationDir: undefined
+        }),
+        resolve(),
+        json()
+    ],
+    cache: false
+};
+
+export default [esm, cjs, cli, sogWorker];

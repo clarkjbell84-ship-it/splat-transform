@@ -2,7 +2,7 @@ import { basename, dirname, resolve } from 'pathe';
 import { BoundingBox, Mat4, Quat, Vec3 } from 'playcanvas';
 
 import { logWrittenFile } from './utils';
-import { writeSog } from './write-sog.js';
+import { type SogWorkers, writeSog } from './write-sog.js';
 import { type TypedArray, DataTable, sortMortonOrder, convertToSpace } from '../data-table';
 import { type FileSystem } from '../io/write';
 import { BTreeNode, BTree } from '../spatial';
@@ -140,6 +140,7 @@ type WriteLodOptions = {
     envDataTable: DataTable | null;
     iterations: number;
     createDevice?: DeviceCreator;
+    workers?: SogWorkers;
     chunkCount: number;
     chunkExtent: number;
 };
@@ -156,7 +157,7 @@ type WriteLodOptions = {
  * @ignore
  */
 const writeLod = async (options: WriteLodOptions, fs: FileSystem) => {
-    const { filename, iterations, createDevice, chunkCount, chunkExtent } = options;
+    const { filename, iterations, createDevice, workers, chunkCount, chunkExtent } = options;
 
     // Operate in PLY space so per-leaf bounds in tree.bound are in the same
     // coordinate frame as the SOG chunk data emitted by writeSog (which also
@@ -301,6 +302,7 @@ const writeLod = async (options: WriteLodOptions, fs: FileSystem) => {
                 bundle: false,
                 iterations,
                 createDevice,
+                workers,
                 logging: 'flat'
             }, fs);
         } finally {
@@ -358,6 +360,7 @@ const writeLod = async (options: WriteLodOptions, fs: FileSystem) => {
                     bundle: false,
                     iterations,
                     createDevice,
+                    workers,
                     logging: 'flat'
                 }, fs);
             } finally {
